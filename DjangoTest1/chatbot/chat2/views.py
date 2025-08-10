@@ -1,42 +1,63 @@
-from django.http import HttpResponse, JsonResponse
-from django.shortcuts import render
-from django.views.decorators.csrf import csrf_exempt
-import requests
 import json
-import os
+import requests
+from django.http import JsonResponse
+from django.shortcuts import render
+from django.views.decorators.csrf import csrf_protect
 
-# Load environment variables
-LLM_API_URL = os.getenv("LLM_API_URL", "http://localhost:3000/api/chat/completions")
-LLM_API_KEY = os.getenv("sk-6e6fd81ee8e244d58d8cfa230dace65d")
-
-def index(request):
-    return HttpResponse("Hi, I am Soumya")
-
-def welcome(request):
-    return render(request, 'chat2/welcome.html')
-
-def chat_page(request):
+def chat_view(request):
+    # Only renders the main chat page at "/"
     return render(request, 'chat2/chat.html')
 
-@csrf_exempt
-def chat_with_llm(request):
+@csrf_protect
+def chat_api(request):
     if request.method == 'POST':
         try:
+            # Parse the AJAX request
             data = json.loads(request.body)
-            user_message = data.get('message', '')
+            user_message = data.get('message', '').strip()
+            print("🔹 User message:", user_message)  # DEBUG
 
-            payload = {"model": "llama3.2:3b", "messages": [{"role": "user", "content": user_message}]}
-            headers = {
-                "Authorization": f"Bearer {LLM_API_KEY}" if LLM_API_KEY else "",
-                "Content-Type": "application/json"
+            if not user_message:
+                return JsonResponse({'error': 'Message is empty'}, status=400)
+
+            # Use the correct model name! (Get this from /api/models in OpenWebUI)
+            payload = {
+                "model": "llama3.2:3b",
+                "messages": [{"role": "user", "content": user_message}]
             }
-            response = requests.post(LLM_API_URL, headers=headers, json=payload, timeout=60)
-            response.raise_for_status()
-            result = response.json()
-            reply = result.get("choices", [{}])[0].get("message", {}).get("content", "No reply.")
+            api_url = "http://localhost:3000/api/chat/completions"
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": "Bearer sk-da10b97c11c6487da2a3c9a7769f527b"
+            }
+            print("📤 POST", api_url)
+            print("📦 Payload", payload)
 
-            return JsonResponse({"reply": reply})
+            # Send to OpenWebUI backend
+            r = requests.post(api_url, json=payload, headers=headers, timeout=30)
+            print("📥 Backend status:", r.status_code)
+            print("📥 Backend raw:", r.text[:500])
+
+            if r.status_code == 200:
+                try:
+                    result = r.json()
+                    # OpenWebUI returns 'choices' as a list, first item has message.content
+                    bot_reply = result.get('choices', [{}])[0].get('message', {}).get('content', '')
+                    print("🤖 Reply:", bot_reply)
+                    return JsonResponse({'response': bot_reply})
+                except Exception as e:
+                    print("🚨 Backend JSON error:", e)
+                    return JsonResponse({'error': 'Could not parse backend reply'}, status=502)
+            else:
+                print("❌ Backend non-200 error", r.status_code, r.text)
+                return JsonResponse({'error': 'Backend error'}, status=r.status_code)
+
+        except requests.RequestException as e:
+            print("🔴 Cannot reach backend:", str(e))
+            return JsonResponse({'error': 'Backend connection failed'}, status=503)
         except Exception as e:
-            return JsonResponse({"error": str(e)}, status=500)
-    else:
-        return JsonResponse({"error": "POST request required."}, status=400)
+            print("🔥 Internal error:", str(e))
+            return JsonResponse({'error': 'Internal Server Error'}, status=500)
+
+    # If GET or other method
+    return JsonResponse({'error': 'Only POST allowed'}, status=405)
