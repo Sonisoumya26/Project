@@ -1,28 +1,34 @@
 import json
 import requests
-from django.http import JsonResponse
+from django.http import HttpResponse
 from django.shortcuts import render
 from django.views.decorators.csrf import csrf_protect
 
+
 def chat_view(request):
-    # Only renders the main chat page at "/"
+    """
+    Render the main chat page at "/"
+    """
     return render(request, 'chat2/chat.html')
+
 
 @csrf_protect
 def chat_api(request):
+    """
+    Handle POST chat messages from the frontend and return plain text bot replies.
+    """
     if request.method == 'POST':
         try:
-            # Parse the AJAX request
+            # Parse incoming JSON
             data = json.loads(request.body)
             user_message = data.get('message', '').strip()
-            print("🔹 User message:", user_message)  # DEBUG
 
             if not user_message:
-                return JsonResponse({'error': 'Message is empty'}, status=400)
+                return HttpResponse("Error: Message is empty", status=400, content_type="text/plain")
 
-            # Use the correct model name! (Get this from /api/models in OpenWebUI)
+            # Prepare payload for OpenWebUI
             payload = {
-                "model": "llama3.2:3b",
+                "model": "llama3.2:3b",   # adjust if needed
                 "messages": [{"role": "user", "content": user_message}]
             }
             api_url = "http://localhost:3000/api/chat/completions"
@@ -30,34 +36,48 @@ def chat_api(request):
                 "Content-Type": "application/json",
                 "Authorization": "Bearer sk-da10b97c11c6487da2a3c9a7769f527b"
             }
-            print("📤 POST", api_url)
-            print("📦 Payload", payload)
 
-            # Send to OpenWebUI backend
+            # Send request to OpenWebUI backend
             r = requests.post(api_url, json=payload, headers=headers, timeout=30)
-            print("📥 Backend status:", r.status_code)
-            print("📥 Backend raw:", r.text[:500])
 
             if r.status_code == 200:
                 try:
                     result = r.json()
-                    # OpenWebUI returns 'choices' as a list, first item has message.content
-                    bot_reply = result.get('choices', [{}])[0].get('message', {}).get('content', '')
-                    print("🤖 Reply:", bot_reply)
-                    return JsonResponse({'response': bot_reply})
+                    # Extract bot reply text
+                    bot_reply = (
+                        result.get('choices', [{}])[0]
+                        .get('message', {})
+                        .get('content', '')
+                        .strip()
+                    )
+
+                    if not bot_reply:
+                        return HttpResponse("Error: Empty reply from backend",
+                                            status=502,
+                                            content_type="text/plain")
+
+                    # ✅ Return plain text response
+                    return HttpResponse(bot_reply, content_type="text/plain")
+
                 except Exception as e:
-                    print("🚨 Backend JSON error:", e)
-                    return JsonResponse({'error': 'Could not parse backend reply'}, status=502)
+                    return HttpResponse("Error: Could not parse backend reply",
+                                        status=502,
+                                        content_type="text/plain")
             else:
-                print("❌ Backend non-200 error", r.status_code, r.text)
-                return JsonResponse({'error': 'Backend error'}, status=r.status_code)
+                return HttpResponse(f"Error: Backend returned {r.status_code}",
+                                    status=r.status_code,
+                                    content_type="text/plain")
 
-        except requests.RequestException as e:
-            print("🔴 Cannot reach backend:", str(e))
-            return JsonResponse({'error': 'Backend connection failed'}, status=503)
-        except Exception as e:
-            print("🔥 Internal error:", str(e))
-            return JsonResponse({'error': 'Internal Server Error'}, status=500)
+        except requests.RequestException:
+            return HttpResponse("Error: Backend connection failed",
+                                status=503,
+                                content_type="text/plain")
+        except Exception:
+            return HttpResponse("Error: Internal Server Error",
+                                status=500,
+                                content_type="text/plain")
 
-    # If GET or other method
-    return JsonResponse({'error': 'Only POST allowed'}, status=405)
+    # Method not allowed
+    return HttpResponse("Error: Only POST allowed",
+                        status=405,
+                        content_type="text/plain")

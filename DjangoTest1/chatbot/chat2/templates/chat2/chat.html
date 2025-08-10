@@ -1,46 +1,32 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>AI Chatbot - Local LLaMA</title>
-    {% load static %}
-    <script src="{% static 'chat2/chat.js' %}" defer></script>
-    <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            max-width: 700px;
-            margin: 2em auto;
-            padding: 0 1em;
-            background-color: #f9f9f9;
-        }
-        h1 { text-align: center; color: #0a74da; margin-bottom: 1em; }
-        #chatbox {
-            border: 1px solid #ccc; border-radius: 8px; padding: 1em;
-            height: 400px; overflow-y: auto; background: #fff;
-        }
-        .message { margin-bottom: 1em; line-height: 1.4em; }
-        .user { font-weight: bold; color: #0a74da; }
-        .bot { color: #555; white-space: pre-wrap; }
-        form { margin-top: 1em; display: flex; gap: 0.5em; }
-        input[type="text"] {
-            flex: 1; padding: 0.5em 1em; border-radius: 25px; border: 1px solid #ccc;
-        }
-        input:focus { border-color: #0a74da; outline: none; }
-        button {
-            background: #0a74da; color: #fff; border: none;
-            padding: 0 1.2em; border-radius: 25px; cursor: pointer;
-        }
-        button:hover { background: #074a9c; }
-    </style>
+    <meta charset="UTF-8">
+    <title>AI Chatbot Assistant</title>
+    <link rel="stylesheet" href="{% static 'chat2/chat.css' %}">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
 </head>
 <body>
-    <h1>AI Chatbot</h1>
-    <div id="chatbox"></div>
-    <form id="chat-form" method="post" autocomplete="off">
-        {% csrf_token %}
-        <input type="text" id="user-input" placeholder="Type your message..." required />
-        <button type="submit">Send</button>
-    </form>
+<div class="chat-ai-bg">
+    <div class="chat-container">
+        <div class="chat-header">
+            <div class="bot-avatar">
+                <span>🤖</span>
+            </div>
+            <div>
+                <div class="bot-title">AI Chatbot Assistant</div>
+                <div class="bot-subtitle">Ask anything. Powered by LLaMA 3.2:3B</div>
+            </div>
+        </div>
+        <div id="chatbox"></div>
+        <form id="chat-form" autocomplete="off">
+            {% csrf_token %}
+            <input type="text" id="user-input" placeholder="Type your message..." required>
+            <button type="submit" title="Send"><span>➤</span></button>
+        </form>
+    </div>
+</div>
+<script src="{% static 'chat2/chat.js' %}" defer></script>
 </body>
 </html>

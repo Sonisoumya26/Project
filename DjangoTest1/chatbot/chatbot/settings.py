@@ -65,7 +65,13 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
+# Static files (CSS, JavaScript, Images)
 STATIC_URL = '/static/'
+
+# This is where collectstatic will gather all static files for production serving
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# Directories where Django will look for additional static files during development
 STATICFILES_DIRS = [
     BASE_DIR / 'chat2' / 'static',
 ]
